@@ -1,0 +1,56 @@
+package com.javarush.test.level28.lesson15.big01.model;// Created on 03.04.2016.
+
+import com.javarush.test.level28.lesson15.big01.vo.Vacancy;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+public class MoikrugStrategy implements Strategy {
+    private static final String URL_FORMAT = "https://moikrug.ru/vacancies?page=%d&q=java+%s";
+    private static final String userAgent = "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.110 Safari/537.36";
+
+    @Override
+    public List<Vacancy> getVacancies(String searchString) {
+        List<Vacancy> list = new ArrayList<>();
+        int pageNumber = 0;
+        try {
+            while (true) {
+                Document document = getDocument(searchString, pageNumber++);
+                Elements elements = document.select("[class=job]");
+                if (elements.size() == 0) break;
+                if (!elements.isEmpty()) {
+                    for (Element el : elements) {
+                        Vacancy vacancy = new Vacancy();
+                        vacancy.setTitle(el.select("[class=title]").first().text());
+                        Element salaryElement = el.select("[class=salary]").first();
+                        String salary;
+                        if (salaryElement == null) {
+                            salary = "";
+                        } else salary = salaryElement.text();
+                        vacancy.setSalary(salary);
+
+                        Element cityElement = el.select("[class=location]").first();
+                        if (cityElement == null) vacancy.setCity("");
+                        else vacancy.setCity(el.select("[class=location]").first().text());
+
+                        vacancy.setCompanyName(el.select("[class=company_name]").first().text());
+                        vacancy.setSiteName("https://moikrug.ru");
+                        vacancy.setUrl(el.getElementsByClass("title").first().child(0).attr("abs:href"));
+                        list.add(vacancy);
+                    }
+                }
+            }
+        }
+        catch (IOException e) {}
+        return list;
+    }
+
+    protected Document getDocument(String searchString, int page) throws IOException {
+        return Jsoup.connect(String.format(URL_FORMAT, page, searchString)).userAgent(userAgent).referrer("").get();
+    }
+}
