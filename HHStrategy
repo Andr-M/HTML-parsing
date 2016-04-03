@@ -1,0 +1,52 @@
+package com.javarush.test.level28.lesson15.big01.model;// Created on 28.03.2016.
+
+import com.javarush.test.level28.lesson15.big01.vo.Vacancy;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+public class HHStrategy implements Strategy {
+    private static final String URL_FORMAT = "http://hh.ua/search/vacancy?text=java+%s&page=%d";
+    private static final String userAgent = "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.110 Safari/537.36";
+
+    @Override
+    public List<Vacancy> getVacancies(String searchString) {
+        List<Vacancy> list = new ArrayList<>();
+        int pageNumber = 0;
+        try {
+            while (true) {
+                Document document = getDocument(searchString, pageNumber++);
+                Elements elements = document.select("[data-qa=vacancy-serp__vacancy]");
+                if (elements.size() == 0) break;
+                if (!elements.isEmpty()) {
+                    for (Element el : elements) {
+                        Vacancy vacancy = new Vacancy();
+                        vacancy.setTitle(el.select("[data-qa=vacancy-serp__vacancy-title]").first().text());
+                        Element salaryElement = el.select("[class=b-vacancy-list-salary]").first();
+                        String salary;
+                        if (salaryElement == null) {
+                            salary = "";
+                        } else salary = salaryElement.text();
+                        vacancy.setSalary(salary);
+                        vacancy.setCity(el.select("[data-qa=vacancy-serp__vacancy-address]").first().text());
+                        vacancy.setCompanyName(el.select("[data-qa=vacancy-serp__vacancy-employer]").first().text());
+                        vacancy.setSiteName("http://hh.ua/");
+                        vacancy.setUrl(el.select("[data-qa=vacancy-serp__vacancy-title]").attr("href"));
+                        list.add(vacancy);
+                    }
+                }
+            }
+        }
+        catch (IOException e) {}
+        return list;
+    }
+
+    protected Document getDocument(String searchString, int page) throws IOException{
+        return Jsoup.connect(String.format(URL_FORMAT, searchString, page)).userAgent(userAgent).referrer("").get();
+    }
+}
